@@ -11,7 +11,7 @@
 // Connect MISO to UNO Digital #12 (Hardware SPI MISO)
 // Connect MOSI to UNO Digital #11 (Hardware SPI MOSI)
 #define RA8875_INT 3
-#define RA8875_CS 10
+#define RA8875_CS 4
 #define RA8875_RESET 9
 //rpm, tps, fuel time, ignition angle
 
@@ -23,6 +23,7 @@ typedef struct
     String key;
     String value;
 }Data;
+
 const int CHANNELS = 2; 
 Data data[CHANNELS];
 //For Testing Only
@@ -67,41 +68,38 @@ int counter = 0;
 int flag = 10;
 
 void loop() {
-  if(rpm >= 12500)
+  if(rpm >= 12600)
     rpm = 0;
   else
-    rpm += 5;
-  displayTester();
-}
-
-void displayTester(){
+    rpm += 50;
+  displayRPM();
+  if(checkWaterTempChange())
     displayWaterTemp();
+  if(checkKPHChange())
     displayKPH();
-    displayRPM();
+  if(checkOilTempChange())
     displayOilTemp();
-    if(checkGearChange())
-      displayGear();
+  tft.clearMemory(true);
+  if(checkGearChange())
+    displayGear();
     LED(rpm);
-    delay(1); //Gives a tiny amount of recovery time for the buffer. Do not remove.
+  delay(5);
 }
 
 void displayGear(){
     static int count = 1;
-    //const tFont* n = tft.getFont();
-    const tFont* n = NULL;
     tft.setFont(&minipixel_24);
-    tft.setFontScale(20);
-    tft.setTextColor(RA8875_WHITE);//background transparent!!!
+    tft.setFontScale(19);
+    //tft.setFontSize(X32);
     tft.setCursor(CENTER, CENTER);
     String gear = String(count);
     char buf[2];
     gear.toCharArray(buf, 2);
-    tft.write("  ");
+    tft.write("    ");
     tft.setCursor(CENTER, CENTER);
-    tft.write(buf);  
+    tft.write(buf,2);  
     tft.setFontScale(2);
-    tft.setFont(n);
-    tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
+    tft.setFont(INT);
     count++;
     if(count > 6)
       count = 1;
@@ -109,7 +107,7 @@ void displayGear(){
 
 bool checkGearChange() //Only update gear if there is a change, otherwise there is too much overhead
 {
-  if(rpm == 12500)
+  if(rpm == 12600)
     return true;
   else
     return false;  
@@ -121,12 +119,20 @@ void displayWaterTemp(){
     tft.write("55.0");
 }
 
+bool checkWaterTempChange(){
+  return true;
+}
+
 void displayKPH(){
     tft.setFontScale(3); 
     tft.setCursor(30, 230);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
     tft.write("125");
     tft.setFontScale(2); 
+}
+
+bool checkKPHChange(){
+  return true;
 }
 
 void displayRPM(){
@@ -157,6 +163,13 @@ void displayOilTemp(){
     tft.write("14.0");
 }
 
+bool checkOilTempChange(){
+  return true;
+}
+
+
+
+//LED code
 void blockIncrementLED() {
   for (int i = 10; i < 16; i++)
     strip.setPixelColor(i, 0, 0, 255);
