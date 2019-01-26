@@ -14,8 +14,6 @@
 #define RA8875_CS 4
 #define RA8875_RESET 9
 #define CHANNELS 27 //Subject to change
-//rpm, tps, fuel time, ignition angle
-
 /*LEGEND for incoming data
  * Fastest way to check incoming signals isnto use one char to indicate the signal
  * DAQ
@@ -41,15 +39,21 @@
  * 4 = Back Right           -- CHANNEL 19
  * a = Front Brake          -- CHANNEL 20
  * b = Rear Brake           -- CHANNEL 21
- * u = UTC                  -- CHANNEL 22
  */
+ /* LEGEND for what colours/warnings mean 
+  *  RED =
+  *  BLUE =
+  *  GREEN =
+  */
 RA8875 tft = RA8875(RA8875_CS, RA8875_RESET);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(16, PIN, NEO_GRBW + NEO_KHZ800); 
-typedef struct{String key;String value;}Data;
-Data DATA[CHANNELS];
+typedef struct{String value;}Data;
+Data DATA[CHANNELS]; //Data structure for storing all the data
 //For Testing Only
 int rpm = 0;//End Testing Only
-static bool whichDisplay = false;//true == main display//false == second display
+static int whichDisplay = 0;//1 == main display//0 == second display
+int buttonPin = 2;
+
 void setup() {
     Serial.begin(115200);
     Serial.println("<Arduino is ready>");/* Initialise the display using 'RA8875_480x272' or 'RA8875_800x480' */
@@ -62,12 +66,9 @@ void setup() {
     strip.begin();
     strip.show();
     strip.setBrightness(5);
-    if(whichDisplay)
-      setupMainDisplayLabels();
-    else
-      setupSecondDisplayLabels();
+    pinMode(buttonPin, INPUT);
 }
-void setupMainDisplayLabels(){
+void setupMainDisplayLabels(){ //Just setup for all the labels
     tft.setFontScale(1);
     tft.setCursor(0, 50);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
@@ -80,7 +81,7 @@ void setupMainDisplayLabels(){
     tft.setCursor(0, 430);  
     tft.write("KPH");
 }
-void setupSecondDisplayLabels(){
+void setupSecondDisplayLabels(){ //Just setup for all the labels
     tft.setFontScale(1);
     tft.setCursor(500, 0);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
@@ -129,9 +130,48 @@ void setupSecondDisplayLabels(){
 }
 int counter = 0;
 int flag = 10;
+bool state = true;
 void loop(){
-  if(whichDisplay){
-    if(rpm >= 12600)
+  if(state){
+      setupMainDisplayLabels();
+      displayPrimaryData(); //Main Display
+  }else{
+      setupSecondDisplayLabels();
+      displaySecondaryData(); //Secondary Display
+  }
+  checkButton();
+}
+int lastButtonState = LOW;
+int buttonState;
+unsigned long lastDebounceTime = 0;
+unsigned long debounceDelay = 50;
+unsigned long firstTime = 0;
+unsigned long timeHeld = 0;
+bool wait = false;
+
+int checkButton(){
+  int reading = digitalRead(buttonPin);
+  if(reading == HIGH && lastButtonState == LOW)
+    firstTime = millis();
+  timeHeld = millis() - firstTime;
+  if(reading == LOW && lastButtonState == HIGH){
+  if(timeHeld < 400){
+      tft.clearActiveWindow();
+      tft.clearMemory();
+      tft.begin(RA8875_800x480);
+      tft.GPIOX(true);      // Enable TFT - display enable tied to GPIOX
+      tft.setRotation(2);
+      delay(1000);
+      state = !state;
+    }
+    else if(timeHeld > 3000)
+      Serial.println("3 second hold");
+  }
+  lastButtonState = reading;
+}
+
+void displayPrimaryData(){ //Dispays data for the main driving display
+  if(rpm >= 12600)
       rpm = 0;
     else
       rpm += 50;
@@ -142,119 +182,10 @@ void loop(){
     tft.clearMemory(true);
     if(checkGearChange())
       displayGear();
-    LED(rpm);
-  }else{
-    //AccelX
-    char buf[7];
-    tft.setCursor(610, 0);  
-    tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
-    (DATA[0].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //AccelY
-    tft.setCursor(610, 40);  
-    (DATA[1].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //AccelZ
-    tft.setCursor(610, 80);  
-    (DATA[2].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Display LAT
-    tft.setCursor(610, 120);
-    (DATA[5].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Display LONG
-    tft.setCursor(610, 160);  
-    (DATA[6].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //FrontL
-    tft.setCursor(610, 240);  
-    (DATA[16].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //FrontR
-    tft.setCursor(610, 280);  
-    (DATA[17].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //RearL
-    tft.setCursor(610, 320);  
-    (DATA[18].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //RearR
-    tft.setCursor(610, 360);  
-    (DATA[19].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Front Brake
-    tft.setCursor(610, 400);  
-    (DATA[20].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Rear Brake
-    tft.setCursor(610, 440);  
-    (DATA[21].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Oil P.
-    tft.setCursor(110, 0);  
-    (DATA[8].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Oil T
-    tft.setCursor(110, 40);  
-    (DATA[7].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Engine T
-    tft.setCursor(110, 80);  
-    (DATA[9].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Fuel T
-    tft.setCursor(110, 120);  
-    (DATA[10].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //AFR
-    tft.setCursor(110, 200);  
-    (DATA[11].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //MAP
-    tft.setCursor(110, 240);  
-    (DATA[14].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //TPS
-    tft.setCursor(110, 280);  
-    (DATA[12].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //IAT
-    tft.setCursor(110, 320);  
-    (DATA[13].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf);
-    //Battery
-    tft.setCursor(120, 400);  
-    (DATA[15].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf); 
-    //UTC
-    tft.setCursor(120, 440);  
-    (DATA[22].value).toCharArray(buf, 7);
-    tft.write("    ");
-    tft.write(buf); 
-  }
+    //LED(rpm);
 }
 
-void displayGear(){
+void displayGear(){ //Just for testing
     static int count = 1;
     tft.setFont(&minipixel_24);
     tft.setFontScale(19);
@@ -277,19 +208,19 @@ bool checkGearChange(){ //Only update gear if there is a change, otherwise there
   else
     return false;  
 }
-void displayWaterTemp(){
+void displayWaterTemp(){//This function just for testing
     tft.setCursor(0, 0);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
     tft.write("55.0");
 }
-void displayKPH(){
+void displayKPH(){ //This function just for testing
     tft.setFontScale(3); 
     tft.setCursor(30, 230);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
     tft.write("125");
     tft.setFontScale(2); 
 }
-void displayRPM(){
+void displayRPM(){ //This function just for testing
     tft.setFontScale(3); 
     if (flag = 1 && rpm < 10000){
       tft.setCursor(600, 230);  
@@ -310,166 +241,172 @@ void displayRPM(){
     flag = (rpm >= 10000)?1:0;
     tft.setFontScale(2); 
 }
-void displayOilTemp(){
+void displayOilTemp(){ //This function just for testing
     tft.setCursor(680, 0);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
     tft.write("14.0");
 }
-void readInput(int howMany){
+
+void displaySecondaryData(){//Displays all data on the secondary display
+    //AccelX
+    char buf[10];
+    tft.setCursor(630, 0);  
+    tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
+    (DATA[0].value).toCharArray(buf, 5);
+    Serial.println(DATA[0].value);
+    tft.write(buf);
+    //AccelY
+    tft.setCursor(630, 40);  
+    (DATA[1].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //AccelZ
+    tft.setCursor(630, 80);  
+    (DATA[2].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Display LAT
+    tft.setCursor(600, 120);
+    (DATA[5].value).toCharArray(buf, 10);
+    tft.write(buf);
+    //Display LONG
+    tft.setCursor(600, 160);  
+    (DATA[6].value).toCharArray(buf, 10);
+    tft.write(buf);
+    //FrontL
+    tft.setCursor(630, 240);  
+    (DATA[16].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //FrontR
+    tft.setCursor(630, 280);  
+    (DATA[17].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //RearL
+    tft.setCursor(630, 320);  
+    (DATA[18].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //RearR
+    tft.setCursor(630, 360);  
+    (DATA[19].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Front Brake
+    tft.setCursor(630, 400);  
+    (DATA[20].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Rear Brake
+    tft.setCursor(630, 440);  
+    (DATA[21].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Oil P.
+    tft.setCursor(130, 0);  
+    (DATA[8].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Oil T
+    tft.setCursor(130, 40);  
+    (DATA[7].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Engine T
+    tft.setCursor(130, 80);  
+    (DATA[9].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Fuel T
+    tft.setCursor(130, 120);  
+    (DATA[10].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //AFR
+    tft.setCursor(130, 200);  
+    (DATA[11].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //MAP
+    tft.setCursor(130, 240);  
+    (DATA[14].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //TPS
+    tft.setCursor(130, 280);  
+    (DATA[12].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //IAT
+    tft.setCursor(130, 320);  
+    (DATA[13].value).toCharArray(buf, 5);
+    tft.write(buf);
+    //Battery
+    tft.setCursor(140, 400);  
+    (DATA[15].value).toCharArray(buf, 6);
+    tft.write(buf); 
+}
+
+//Get Data and store
+void readInput(int howMany){ //Get all data and store in the data structure as string values
   String data = "";
-  static int count = 0;
   while(Wire.available() > 0){
     char c = Wire.read();
     data += c;
   }
-  String formattedData = "";
-  if(data[0] == '{'){
-    for(int i = 0; i < data.length(); i++)//Get rid of {} chars.
-      if(data[i] != '{' && data[i] != '}')
-        formattedData += data[i];
-    data = formattedData;
+  String val = "";
+  for(int i = 1; i < data.length(); i++)
+    val += (String)data[i];
+  //Serial.println(val);
+  if(data[0] == 'x')
+    DATA[0].value = val;
+  else if(data[0] == 'y')
+    DATA[1].value = val;
+  else if(data[0] == 'z')
+    DATA[2].value = val;
+  else if(data[0] == 'r')
+    DATA[3].value = val;
+  else if(data[0] == 's')
+    DATA[4].value = val;
+  else if(data[0] == 'l'){
+    DATA[5].value = "";
+    DATA[5].value = val;
   }
-  else{
-    String val = "";
-    for(int i = 1; i < data.length(); i++)
-      val += (String)data[i];
-    if(data[0] == 'x'){
-      DATA[0].key = "x";
-      DATA[0].value = val;
-    }
-    else if(data[0] == 'y'){
-      DATA[1].key = "y";
-      DATA[1].value = val;
-    }
-    else if(data[0] == 'z'){
-      DATA[2].key = "z";
-      DATA[2].value = val;
-    }
-    else if(data[0] == 'r'){
-      DATA[3].key = "r";
-      DATA[3].value = val;
-    }
-    else if(data[0] == 's'){
-      DATA[4].key = "s";
-      DATA[4].value = val;
-    }
-    else if(data[0] == 'l'){
-      DATA[5].key = "l";
-      DATA[5].value = val;
-    }
-    else if(data[0] == 'g'){
-      DATA[6].key = "g";
-      DATA[6].value = val;
-    }
-    else if(data[0] == 'o'){
-      DATA[7].key = "o";
-      DATA[7].value = val;
-    }
-    else if(data[0] == 'p'){
-      DATA[8].key = "p";
-      DATA[8].value = val;
-    }
-    else if(data[0] == 't'){
-      DATA[9].key = "t";
-      DATA[9].value = val;
-    }
-    else if(data[0] == 'F'){
-      DATA[10].key = "F";
-      DATA[10].value = val;
-    }
-    else if(data[0] == 'A'){
-      DATA[11].key = "A";
-      DATA[11].value = val;
-    }
-    else if(data[0] == 'T'){
-      DATA[12].key = "T";
-      DATA[12].value = val;
-    }
-    else if(data[0] == 'I'){
-      DATA[13].key = "I";
-      DATA[13].value = val;
-    }
-    else if(data[0] == 'M'){
-      DATA[14].key = "M";
-      DATA[14].value = val;
-    }
-    else if(data[0] == 'B'){
-      DATA[15].key = "B";
-      DATA[15].value = val;
-    }
-    else if(data[0] == '1'){
-      DATA[16].key = "1";
-      DATA[16].value = val;
-    }
-    else if(data[0] == '2'){
-      DATA[17].key = "2";
-      DATA[17].value = val;
-    }
-    else if(data[0] == '3'){
-      DATA[18].key = "3";
-      DATA[18].value = val;
-    }
-    else if(data[0] == '4'){
-      DATA[19].key = "4";
-      DATA[19].value = val;
-    }
-    else if(data[0] == 'a'){
-      DATA[20].key = "a";
-      DATA[20].value = val;
-    }
-    else if(data[0] == 'b'){
-      DATA[21].key = "b";
-      DATA[21].value = val;
-    }
+  else if(data[0] == 'g'){
+    DATA[6].value = "";
+    DATA[6].value = val;
   }
-  
-//  char sep = ':';
-//  char dataSep  = ',';
-//  String keys[CHANNELS];
-//  String vals[CHANNELS];
-//  int j = 0;
-//  int i = 0;
-//  String key = "";
-//  String value = "";
-//  
-//  for(; i < CHANNELS; i++){
-//    key = "";
-//    value = "";
-//    bool flag = 0; //starting at a key
-//    while(data[j] != sep && data[j] != '\0'){ //Just get the key
-//      if(data[j] == dataSep || data[j] == ' ' || data[j] == sep)
-//        j++;
-//      key += data[j];
-//      j++;
-//    }
-//    keys[i] = key;
-//    while(data[j] != dataSep && data[j] != '\0'){//Get the value{
-//      if(data[j] == sep || data[j] == ' ' || data[j] == dataSep)
-//        j++;
-//      value += data[j];
-//      j++;
-//    }
-//    j++;//To remove spaces
-//    vals[i] = value;
-//  }
-//  
-//  while(count < i){
-//    DATA[count].key = keys[count];
-//    DATA[count].value = vals[count];
-//    count++;
-//  }
-//  if(count == 24)
-//    count = 0;
+  else if(data[0] == 'o')
+    DATA[7].value = val;
+  else if(data[0] == 'p')
+    DATA[8].value = val;
+  else if(data[0] == 't')
+    DATA[9].value = val;
+  else if(data[0] == 'F')
+    DATA[10].value = val;
+  else if(data[0] == 'A')
+    DATA[11].value = val;
+  else if(data[0] == 'T')
+    DATA[12].value = val;
+  else if(data[0] == 'I')
+    DATA[13].value = val;
+  else if(data[0] == 'M')
+    DATA[14].value = val;
+  else if(data[0] == 'B')
+    DATA[15].value = val;
+  else if(data[0] == '1')
+    DATA[16].value = val;
+  else if(data[0] == '2')
+    DATA[17].value = val;
+  else if(data[0] == '3')
+    DATA[18].value = val;
+  else if(data[0] == '4')
+    DATA[19].value = val;
+  else if(data[0] == 'a')
+    DATA[20].value = val;
+  else if(data[0] == 'b')
+    DATA[21].value = val;
+  else if(data[0] == 'L'){//Get extra decimals for latitude
+    if(DATA[5].value.length() < 10)//Just so it doesnt add on more because the rates of arrival for data is always slightly different
+      DATA[5].value += val;
+  }else if(data[0] == 'G'){//Get extra decimals for longitude
+    if(DATA[6].value.length() < 10)//Just so it doesnt add on more because the rates of arrival for data is always slightly different
+      DATA[6].value += val;
+  }
 }
 
 //LED CODE
-
-void blockIncrementLED() {
+void blockIncrementLED() { //Just for making the blue appear as a block
   for (int i = 10; i < 16; i++)
     strip.setPixelColor(i, 0, 0, 255);
 }
-
-void LED (int rpm) {
+void LED (int rpm) {//Actually determines the number of LEDS on based on the RPM value
   int numberoflights = (int)((rpm - 10000) * 0.0064);        
   if (numberoflights > strip.numPixels()) 
     numberoflights = 0;
