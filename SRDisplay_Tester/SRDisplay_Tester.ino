@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <SPI.h>
 #include "RA8875.h"
 #include <Adafruit_NeoPixel.h>
@@ -15,7 +14,7 @@
 #define RA8875_RESET 9
 #define CHANNELS 27 //Subject to change
 /*LEGEND for incoming data
- * Fastest way to check incoming signals isnto use one char to indicate the signal
+ * Fastest way to check incoming signals is to use one char to indicate the signal from
  * DAQ
  * x = x accel              -- CHANNEL 0   
  * y = y accel              -- CHANNEL 1
@@ -45,18 +44,23 @@
   *  BLUE =
   *  GREEN =
   */
+
 RA8875 tft = RA8875(RA8875_CS, RA8875_RESET);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(16, PIN, NEO_GRBW + NEO_KHZ800); 
-typedef struct{String value;}Data;
+
+typedef struct{
+  String value;
+}Data;
+
 Data DATA[CHANNELS]; //Data structure for storing all the data
 //For Testing Only
-int rpm = 0;//End Testing Only
-static int whichDisplay = 0;//1 == main display//0 == second display
+int rpm = 0; //End Testing Only
+static int whichDisplay = 0; //1 == main display //0 == second display
 int buttonPin = 2;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("<Arduino is ready>");/* Initialise the display using 'RA8875_480x272' or 'RA8875_800x480' */
+    Serial.println("<Arduino is ready>"); /* Initialise the display using 'RA8875_480x272' or 'RA8875_800x480' */
     //Setup for Adafruit_RA8875
     Wire.begin(8);
     Wire.onReceive(readInput);
@@ -135,12 +139,14 @@ void loop(){
   if(state){
       setupMainDisplayLabels();
       displayPrimaryData(); //Main Display
-  }else{
+  }
+  else{
       setupSecondDisplayLabels();
       displaySecondaryData(); //Secondary Display
   }
   checkButton();
 }
+
 int lastButtonState = LOW;
 int buttonState;
 unsigned long lastDebounceTime = 0;
@@ -182,7 +188,7 @@ void displayPrimaryData(){ //Dispays data for the main driving display
     tft.clearMemory(true);
     if(checkGearChange())
       displayGear();
-    //LED(rpm);
+    LED(rpm);
 }
 
 void displayGear(){ //Just for testing
@@ -208,11 +214,13 @@ bool checkGearChange(){ //Only update gear if there is a change, otherwise there
   else
     return false;  
 }
+
 void displayWaterTemp(){//This function just for testing
     tft.setCursor(0, 0);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
     tft.write("55.0");
 }
+
 void displayKPH(){ //This function just for testing
     tft.setFontScale(3); 
     tft.setCursor(30, 230);  
@@ -220,6 +228,7 @@ void displayKPH(){ //This function just for testing
     tft.write("125");
     tft.setFontScale(2); 
 }
+
 void displayRPM(){ //This function just for testing
     tft.setFontScale(3); 
     if (flag = 1 && rpm < 10000){
@@ -241,6 +250,7 @@ void displayRPM(){ //This function just for testing
     flag = (rpm >= 10000)?1:0;
     tft.setFontScale(2); 
 }
+
 void displayOilTemp(){ //This function just for testing
     tft.setCursor(680, 0);  
     tft.setTextColor(RA8875_WHITE, RA8875_BLACK);
@@ -343,7 +353,6 @@ void readInput(int howMany){ //Get all data and store in the data structure as s
   String val = "";
   for(int i = 1; i < data.length(); i++)
     val += (String)data[i];
-  //Serial.println(val);
   if(data[0] == 'x')
     DATA[0].value = val;
   else if(data[0] == 'y')
@@ -406,6 +415,7 @@ void blockIncrementLED() { //Just for making the blue appear as a block
   for (int i = 10; i < 16; i++)
     strip.setPixelColor(i, 0, 0, 255);
 }
+
 void LED (int rpm) {//Actually determines the number of LEDS on based on the RPM value
   int numberoflights = (int)((rpm - 10000) * 0.0064);        
   if (numberoflights > strip.numPixels()) 
