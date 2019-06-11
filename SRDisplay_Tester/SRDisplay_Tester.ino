@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <SPI.h>
 #include "RA8875.h"
 #include <Adafruit_NeoPixel.h>
@@ -10,40 +11,40 @@
 // Connect MISO to UNO Digital #12 (Hardware SPI MISO)
 // Connect MOSI to UNO Digital #11 (Hardware SPI MOSI)
 #define RA8875_INT 3
-#define RA8875_CS 4
+#define RA8875_CS 10
 #define RA8875_RESET 9
 #define CHANNELS 27 //Subject to change
-/*LEGEND for incoming data
- * Fastest way to check incoming signals is to use one char to indicate the signal from
- * DAQ
- * x = x accel              -- CHANNEL 0   
- * y = y accel              -- CHANNEL 1
- * z = z accel              -- CHANNEL 2
- * r = rpm                  -- CHANNEL 3
- * s = speed                -- CHANNEL 4
- * l = latitude             -- CHANNEL 5
- * g = longitude            -- CHANNEL 6
- * o = oiltemp              -- CHANNEL 7
- * p = oilpressure          -- CHANNEL 8
- * t = enginetemp           -- CHANNEL 9
- * F = FuelTemp             -- CHANNEL 10
- * A = AFR                  -- CHANNEL 11
- * T = TPS                  -- CHANNEL 12
- * I = IAT                  -- CHANNEL 13
- * M = MAP                  -- CHANNEL 14
- * B = Battery              -- CHANNEL 15
- * 1 = Front Left           -- CHANNEL 16
- * 2 = Front Right          -- CHANNEL 17
- * 3 = Back Left            -- CHANNEL 18
- * 4 = Back Right           -- CHANNEL 19
- * a = Front Brake          -- CHANNEL 20
- * b = Rear Brake           -- CHANNEL 21
- */
- /* LEGEND for what colours/warnings mean 
-  *  RED =
-  *  BLUE =
-  *  GREEN =
-  */
+///*LEGEND for incoming data
+// * Fastest way to check incoming signals is to use one char to indicate the signal from
+// * DAQ
+// * x = x accel              -- CHANNEL 0   
+// * y = y accel              -- CHANNEL 1
+// * z = z accel              -- CHANNEL 2
+// * r = rpm                  -- CHANNEL 3
+// * s = speed                -- CHANNEL 4
+// * l = latitude             -- CHANNEL 5
+// * g = longitude            -- CHANNEL 6
+// * o = oiltemp              -- CHANNEL 7
+// * p = oilpressure          -- CHANNEL 8
+// * t = enginetemp           -- CHANNEL 9
+// * F = FuelTemp             -- CHANNEL 10
+// * A = AFR                  -- CHANNEL 11
+// * T = TPS                  -- CHANNEL 12
+// * I = IAT                  -- CHANNEL 13
+// * M = MAP                  -- CHANNEL 14
+// * B = Battery              -- CHANNEL 15
+// * 1 = Front Left           -- CHANNEL 16
+// * 2 = Front Right          -- CHANNEL 17
+// * 3 = Back Left            -- CHANNEL 18
+// * 4 = Back Right           -- CHANNEL 19
+// * a = Front Brake          -- CHANNEL 20
+// * b = Rear Brake           -- CHANNEL 21
+// */
+// /* LEGEND for what colours/warnings mean 
+//  *  RED =
+//  *  BLUE =
+//  *  GREEN =
+//  */
 
 RA8875 tft = RA8875(RA8875_CS, RA8875_RESET);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(16, PIN, NEO_GRBW + NEO_KHZ800); 
@@ -65,6 +66,9 @@ void setup() {
     Wire.begin(8);
     Wire.onReceive(readInput);
     tft.begin(RA8875_800x480);
+    tft.displayOn(true);
+    tft.backlight(true);
+    //tft.begin(Adafruit_800x480);
     tft.GPIOX(true);      // Enable TFT - display enable tied to GPIOX
     tft.setRotation(2);
     strip.begin();
@@ -188,7 +192,7 @@ void displayPrimaryData(){ //Dispays data for the main driving display
     tft.clearMemory(true);
     if(checkGearChange())
       displayGear();
-    LED(rpm);
+    LED(DATA[3]);
 }
 
 void displayGear(){ //Just for testing
@@ -417,7 +421,7 @@ void blockIncrementLED() { //Just for making the blue appear as a block
 }
 
 void LED (int rpm) {//Actually determines the number of LEDS on based on the RPM value
-  int numberoflights = (int)((rpm - 10000) * 0.0064);        
+  int numberoflights = (int)(rpm - 10000) * 0.0064);        
   if (numberoflights > strip.numPixels()) 
     numberoflights = 0;
   for (int i = 0; i < strip.numPixels(); i++) {
