@@ -192,7 +192,7 @@ void displayPrimaryData(){ //Dispays data for the main driving display
     tft.clearMemory(true);
     if(checkGearChange())
       displayGear();
-    LED(DATA[3]);
+    LED(rpm);
 }
 
 void displayGear(){ //Just for testing
@@ -212,6 +212,7 @@ void displayGear(){ //Just for testing
     if(count > 6)
       count = 1;
 }
+
 bool checkGearChange(){ //Only update gear if there is a change, otherwise there is too much overhead
   if(rpm == 12600)
     return true;
@@ -421,7 +422,7 @@ void blockIncrementLED() { //Just for making the blue appear as a block
 }
 
 void LED (int rpm) {//Actually determines the number of LEDS on based on the RPM value
-  int numberoflights = (int)(rpm - 10000) * 0.0064);        
+  int numberoflights = ((int)(rpm - 10000) * 0.0064);        
   if (numberoflights > strip.numPixels()) 
     numberoflights = 0;
   for (int i = 0; i < strip.numPixels(); i++) {
